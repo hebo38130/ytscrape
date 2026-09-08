@@ -160,6 +160,16 @@ for item in results:
 
 ### Methods
 
+**`to_dict()`** / **`to_json()`** / **`to_csv()`**
+
+:   Serialize every item the iterator would yield (`max_results` still applies). `to_json()` returns a JSON array; `to_csv()` a headered CSV table.
+
+
+**`dump_json(path)`** / **`dump_csv(path)`**
+
+:   Same payloads, written to a file path or file object.
+
+
 **`fetch_next_page()`** (`list[Video | Channel | Playlist]`)
 
 :   Explicitly fetches the next page of results, appends them to the internal buffer, and returns the newly added items as a list. Returns an empty list when there are no more pages. Use this when you want fine-grained control over network calls instead of relying on the implicit iterator.
@@ -221,6 +231,8 @@ async with AsyncYouTube() as yt:
     async for item in results:
         print(item.title)
     page = await results.fetch_next_page()
+    await results.dump_csv("search.csv")
+    print(await results.to_json())
 ```
 
 See the [Async API guide](../guides/async.md).

@@ -5,6 +5,15 @@ All notable changes to **ytscrape** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-08-19
+
+### Added
+
+- Paginator export: `SearchResults` and `CommentThread` expose `to_json()` /
+  `to_csv()` / `dump_json` / `dump_csv`. Async counterparts use
+  `await results.to_json()` (and the same dump helpers). Streams honour
+  `max_results` and write a JSON array or CSV table of items.
+
 ## [1.0.0] - 2026-08-14
 
 ### Changed

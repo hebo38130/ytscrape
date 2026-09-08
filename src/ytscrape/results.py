@@ -12,6 +12,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from . import parsing
+from .export import Exportable
 from .models import Channel, Comment, Playlist, Video
 
 __all__ = ["SearchResults", "CommentThread"]
@@ -19,7 +20,7 @@ __all__ = ["SearchResults", "CommentThread"]
 SearchItem = Video | Channel | Playlist
 
 
-class SearchResults:
+class SearchResults(Exportable):
     """Iterable view over the results of a search, with transparent paging.
 
     The object is a lazy iterable: nothing is fetched beyond the first page
@@ -29,6 +30,12 @@ class SearchResults:
             print(item.title)
 
     or page manually with :meth:`fetch_next_page`.
+
+    Export without materialising a list first::
+
+        results = youtube.search("python", max_results=20)
+        results.dump_csv("search.csv")
+        print(results.to_json())
     """
 
     def __init__(
@@ -90,7 +97,7 @@ class SearchResults:
                 return
 
 
-class CommentThread:
+class CommentThread(Exportable):
     """Iterable view over the comments of a video, with transparent paging.
 
     Returned by :meth:`ytscrape.YouTube.comments`. Like :class:`SearchResults`
@@ -105,6 +112,12 @@ class CommentThread:
     ``include_replies=True`` to also expand every thread's replies (marked with
     :attr:`~ytscrape.models.Comment.is_reply`), which are yielded right after
     the top-level comment they belong to.
+
+    Export the collected stream without materialising a list first::
+
+        thread = youtube.comments(video_id, max_results=200)
+        thread.dump_csv("comments.csv")
+        print(thread.to_json())
     """
 
     def __init__(

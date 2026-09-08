@@ -31,6 +31,24 @@ with YouTube() as yt:
 
 When `include_replies=True`, `max_results` counts replies alongside top-level comments.
 
+## Export JSON / CSV
+
+`CommentThread` can serialize itself — no need to wrap it in `list()` first.
+Export consumes the iterator (and honours `max_results`):
+
+```python
+with YouTube() as yt:
+    thread = yt.comments(
+        "https://youtu.be/dQw4w9WgXcQ",
+        max_results=200,
+        include_replies=True,
+        sort="newest",
+    )
+    thread.dump_csv("comments.csv")
+    thread.dump_json("comments.json")
+    # or: print(thread.to_csv()); print(thread.to_json())
+```
+
 ## Sort order
 
 The sort order matters for completeness.

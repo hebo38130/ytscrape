@@ -86,6 +86,16 @@
 :   Explicitly fetches the next page of comments, appends them to the internal buffer, and returns the newly added `Comment` instances as a list. When `include_replies=True` the list also contains the replies expanded for each thread on the fetched page. Returns an empty list when there are no more pages.
 
 
+**`to_dict()`** / **`to_json()`** / **`to_csv()`**
+
+:   Serialize every comment the iterator would yield (`max_results` still applies). `to_json()` returns a JSON array; `to_csv()` a headered CSV table.
+
+
+**`dump_json(path)`** / **`dump_csv(path)`**
+
+:   Same payloads, written to a file path or file object.
+
+
 ### Iteration
 
 `CommentThread` is directly iterable and yields `Comment` instances. The iterator respects `max_results` if it was provided to `YouTube.comments()`.
@@ -128,6 +138,11 @@ print(f"Found {len(hearted)} hearted comment(s)")
 thread = yt.comments("https://youtu.be/dQw4w9WgXcQ")
 page1 = thread.fetch_next_page()
 page2 = thread.fetch_next_page() if thread.has_more else []
+
+# Export the thread (consumes remaining pages up to max_results)
+export = yt.comments("https://youtu.be/dQw4w9WgXcQ", max_results=50)
+export.dump_csv("comments.csv")
+print(export.to_json())
 ```
 
 !!! note
@@ -153,6 +168,8 @@ async with AsyncYouTube() as yt:
     )
     async for comment in thread:
         print(comment.author, comment.text)
+    await thread.dump_csv("comments.csv")
+    print(await thread.to_json())
 ```
 
 Full guide: [Async API](../guides/async.md).

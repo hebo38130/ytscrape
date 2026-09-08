@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from . import parsing
+from .export import AsyncExportable
 from .models import Channel, Comment, Playlist, Video
 
 __all__ = ["AsyncSearchResults", "AsyncCommentThread"]
@@ -17,8 +18,11 @@ __all__ = ["AsyncSearchResults", "AsyncCommentThread"]
 SearchItem = Video | Channel | Playlist
 
 
-class AsyncSearchResults:
-    """Async iterable view over search results with transparent paging."""
+class AsyncSearchResults(AsyncExportable):
+    """Async iterable view over search results with transparent paging.
+
+    Export with ``await results.dump_csv(...)`` / ``await results.to_json()``.
+    """
 
     def __init__(
         self,
@@ -74,8 +78,11 @@ class AsyncSearchResults:
                 return
 
 
-class AsyncCommentThread:
-    """Async iterable view over video comments with transparent paging."""
+class AsyncCommentThread(AsyncExportable):
+    """Async iterable view over video comments with transparent paging.
+
+    Export with ``await thread.dump_csv(...)`` / ``await thread.to_json()``.
+    """
 
     def __init__(
         self,

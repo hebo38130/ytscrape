@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -331,5 +332,16 @@ class TestAsyncSearchPaging:
                 "v1",
                 "v2",
             ]
+
+        _run(body())
+
+    def test_to_json_export(self) -> None:
+        async def body() -> None:
+            first = {"contents": [{"videoRenderer": {"videoId": "v1"}}]}
+            results = AsyncSearchResults(FakeAsyncClient(), first, max_results=1)
+            parsed = json.loads(await results.to_json())
+            assert parsed[0]["video_id"] == "v1"
+            csv_text = await results.to_csv()
+            assert "video_id" in csv_text
 
         _run(body())

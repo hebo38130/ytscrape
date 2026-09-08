@@ -95,6 +95,14 @@ results = await yt.search("python", max_results=50)
 items = [item async for item in results]
 ```
 
+Or export the stream directly:
+
+```python
+results = await yt.search("python", max_results=50)
+await results.dump_csv("search.csv")
+print(await results.to_json())
+```
+
 ## Concurrency limit, retries, and backoff
 
 The default [`AsyncInnerTubeClient`](../api/innertube-client.md) caps in-flight HTTP calls and retries transient failures (408, 425, 429, 5xx) with exponential backoff and jitter.

@@ -1,7 +1,8 @@
 """Serialize ytscrape models (and collections of them) to JSON / CSV.
 
-Models expose the same helpers as methods (``obj.to_json()``, ``obj.to_csv()``).
-Collections and mixed search results go through the module-level functions::
+Models and paginators expose the same helpers (``obj.to_json()``, ``obj.to_csv()``).
+Async paginators use ``await obj.to_json()``. Module-level functions still accept
+any iterable::
 
     from ytscrape import Video, dumps_json, dumps_csv
 
@@ -21,6 +22,7 @@ from typing import Any, TextIO
 
 __all__ = [
     "Exportable",
+    "AsyncExportable",
     "to_dict",
     "dumps_json",
     "dumps_csv",
@@ -194,3 +196,27 @@ class Exportable:
 
     def dump_csv(self, path: str | Path | TextIO) -> None:
         dump_csv(self, path)
+
+
+class AsyncExportable:
+    """Mixin for async paginators: ``await obj.to_json()`` / ``dump_csv``."""
+
+    async def _export_items(self) -> list[Any]:
+        return [item async for item in self]  # type: ignore[misc]
+
+    async def to_dict(self) -> Any:
+        return to_dict(await self._export_items())
+
+    async def to_json(self, *, indent: int | None = 2) -> str:
+        return dumps_json(await self._export_items(), indent=indent)
+
+    async def to_csv(self) -> str:
+        return dumps_csv(await self._export_items())
+
+    async def dump_json(
+        self, path: str | Path | TextIO, *, indent: int | None = 2
+    ) -> None:
+        dump_json(await self._export_items(), path, indent=indent)
+
+    async def dump_csv(self, path: str | Path | TextIO) -> None:
+        dump_csv(await self._export_items(), path)

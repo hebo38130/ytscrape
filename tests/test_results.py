@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from ytscrape import CommentThread, SearchResults, Video
@@ -81,6 +83,16 @@ class TestSearchResults:
         )
         results = SearchResults(client, first)
         assert [v.video_id for v in results] == ["x"]
+
+    def test_to_json_and_to_csv(self) -> None:
+        first = _video_page(["a"], token="T1")
+        client = FakeClient([_video_page(["b"], token=None)])
+        results = SearchResults(client, first, max_results=2)
+        parsed = json.loads(results.to_json())
+        assert [row["video_id"] for row in parsed] == ["a", "b"]
+        csv_text = results.to_csv()
+        assert "video_id" in csv_text
+        assert "a" in csv_text
 
 
 def _comment_page(
@@ -264,3 +276,24 @@ class TestCommentThread:
         client = FakeCommentClient([reply_page])
         thread = CommentThread(client, first, include_replies=True, max_results=2)
         assert [c.comment_id for c in thread] == ["a", "a1"]
+
+    def test_dump_csv_and_json(self, tmp_path: Path) -> None:
+        first = _comment_page(["a", "b"], token=None)
+        thread = CommentThread(FakeCommentClient([]), first)
+        csv_path = tmp_path / "comments.csv"
+        json_path = tmp_path / "comments.json"
+        thread.dump_csv(csv_path)
+        thread.dump_json(json_path)
+        assert "comment_id" in csv_path.read_text(encoding="utf-8")
+        assert "a" in csv_path.read_text(encoding="utf-8")
+        parsed = json.loads(json_path.read_text(encoding="utf-8"))
+        assert [row["comment_id"] for row in parsed] == ["a", "b"]
+
+    def test_to_csv_and_to_json_strings(self) -> None:
+        first = _comment_page(["a"], token="T1")
+        client = FakeCommentClient([_comment_page(["b"], token=None)])
+        thread = CommentThread(client, first, max_results=2)
+        parsed = json.loads(thread.to_json())
+        assert [row["comment_id"] for row in parsed] == ["a", "b"]
+        assert "comment_id" in thread.to_csv()
+        assert "text-a" in thread.to_csv()

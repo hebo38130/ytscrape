@@ -487,5 +487,6 @@ Same pagination contract as [`SearchResults`](models-search.md) / [`CommentThrea
 * `async for item in results:` — lazy pages
 * `await results.fetch_next_page()` — manual page load
 * `results.has_more` — continuation available
+* `await results.to_json()` / `await results.dump_csv(path)` — export up to `max_results`
 
 See the [Async API guide](../guides/async.md) for concurrency patterns and multi-video `asyncio.gather` examples.
