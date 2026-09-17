@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Download YouTube storyboard sprite sheets for visual worker-transition research.
 
-This deliberately avoids yt-dlp video/caption downloads. It uses ytscrape's
-InnerTube player response to obtain YouTube's own storyboard preview frames,
-then downloads the sprite sheets from i.ytimg.com for later visual coding.
+This avoids yt-dlp video/caption downloads. It first asks InnerTube player for
+YouTube's own storyboard preview frames. If the cloud player response omits
+storyboards, it falls back to parsing the public watch-page HTML.
 """
 from __future__ import annotations
 
@@ -53,6 +53,23 @@ def add_query(url: str, key: str, value: str) -> str:
     return urlunparse(p._replace(query=urlencode(q)))
 
 
+def extract_spec_from_watch_html(html: str) -> str | None:
+    # Watch pages usually embed this object inside ytInitialPlayerResponse.
+    patterns = [
+        r'"playerStoryboardSpecRenderer"\s*:\s*\{\s*"spec"\s*:\s*"((?:\\.|[^"\\])*)"',
+        r'"spec"\s*:\s*"((?:\\.|[^"\\])*)"\s*\}\s*,?\s*"playerStoryboardSpecRenderer"',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, html)
+        if not m:
+            continue
+        try:
+            return json.loads('"' + m.group(1) + '"')
+        except Exception:
+            return m.group(1).replace(r"\u0026", "&").replace(r"\/", "/")
+    return None
+
+
 def parse_storyboard(spec: str, length_seconds: int | None):
     parts = spec.split("|")
     if len(parts) < 2:
@@ -74,9 +91,16 @@ def parse_storyboard(spec: str, length_seconds: int | None):
         url = add_query(url, "sigh", sigh)
         images_count = max(1, math.ceil(count / max(1, cols * rows)))
         levels.append({
-            "level": idx, "width": width, "height": height, "count": count,
-            "columns": cols, "rows": rows, "interval_ms": interval,
-            "name": name, "url": url, "images_count": images_count,
+            "level": idx,
+            "width": width,
+            "height": height,
+            "count": count,
+            "columns": cols,
+            "rows": rows,
+            "interval_ms": interval,
+            "name": name,
+            "url": url,
+            "images_count": images_count,
         })
     return levels
 
@@ -113,6 +137,8 @@ def main() -> None:
 
     successful_videos = 0
     downloaded_sheets = 0
+    html_fallback_hits = 0
+
     for item in candidates:
         if successful_videos >= 45:
             break
@@ -124,22 +150,37 @@ def main() -> None:
                 length = int(details.get("lengthSeconds") or 0)
             except (TypeError, ValueError):
                 length = 0
+
             renderer = ((player.get("storyboards") or {}).get("playerStoryboardSpecRenderer") or {})
             spec = renderer.get("spec")
+            source = "innertube_player"
+
             if not isinstance(spec, str) or not spec:
-                errors.append({"video_id": vid, "title": item["title"], "error": "no storyboard spec"})
+                source = "watch_html"
+                try:
+                    html = yt.client.get_html(item["url"])
+                    spec = extract_spec_from_watch_html(html)
+                    if spec:
+                        html_fallback_hits += 1
+                except Exception:
+                    spec = None
+
+            if not isinstance(spec, str) or not spec:
+                errors.append({"video_id": vid, "title": item["title"], "error": "no storyboard spec from player or watch HTML"})
                 continue
+
             levels = parse_storyboard(spec, length)
             if not levels:
                 errors.append({"video_id": vid, "title": item["title"], "error": "storyboard parse failed"})
                 continue
-            # Highest-resolution level is generally last.
+
             level = levels[-1]
             folder = SHEETS / vid
             folder.mkdir(exist_ok=True)
             max_sheets = min(level["images_count"], 16)
             saved = []
             sheet_interval = level["interval_ms"] * level["columns"] * level["rows"]
+
             for n in range(max_sheets):
                 url = level["url"].replace("$M", str(n))
                 r = session.get(url, timeout=30)
@@ -154,14 +195,17 @@ def main() -> None:
                     "approx_end_seconds": round(((n + 1) * sheet_interval) / 1000, 1),
                 })
                 downloaded_sheets += 1
+
             if not saved:
-                errors.append({"video_id": vid, "title": item["title"], "error": "storyboard image download failed"})
+                errors.append({"video_id": vid, "title": item["title"], "error": f"storyboard image download failed ({source})"})
                 continue
+
             successful_videos += 1
             manifest.append({
                 **item,
                 "query": query_for.get(vid, ""),
                 "length_seconds": length,
+                "storyboard_source": source,
                 "storyboard": {k: v for k, v in level.items() if k != "url"},
                 "sheets": saved,
             })
@@ -175,6 +219,7 @@ def main() -> None:
         "unique_candidates": len(candidates),
         "storyboard_videos": successful_videos,
         "storyboard_sheets": downloaded_sheets,
+        "watch_html_storyboard_hits": html_fallback_hits,
         "errors": len(errors),
     }
     (OUT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
