@@ -1,0 +1,44 @@
+name: Worker Transition Research
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/worker_transition_research.py'
+      - '.github/workflows/worker-transition-research.yml'
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install package and tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install yt-dlp
+
+      - name: Run worker transition research
+        run: |
+          python tools/worker_transition_research.py
+
+      - name: Upload research output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-transition-research
+          path: research_output/
+          if-no-files-found: warn
